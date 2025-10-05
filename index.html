@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>角度測定プリントメーカー（A4横・斜線最大化）</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  @media print { #controls { display:none; } body { background:white; } }
+
+  body{ font-family:'Noto Sans JP',sans-serif; margin:0; background:#fff; }
+  #controls{ display:flex; gap:10px; padding:10px; background:#fff; position:sticky; top:0; }
+  button{ border:1px solid #000; border-radius:8px; padding:8px 12px; cursor:pointer; }
+  button.secondary{ background:#fff; }
+
+  .sheet{ width:297mm; height:210mm; margin:0 auto; display:flex; flex-direction:column; padding:8mm; box-sizing:border-box; }
+  .head{ font-size:12pt; margin-bottom:5mm; }
+  .line{ display:inline-block; min-width:70mm; height:6mm; border-bottom:1px solid #333; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:12mm; flex:1; }
+  .cell{ position:relative; }
+  .title{ position:absolute; top:2mm; left:4mm; font-size:10pt; color:#555; }
+  .blank{ position:absolute; left:4mm; right:4mm; bottom:0mm; text-align:center; font-size:14pt; color:#333; }
+  svg{ width:100%; height:100%; display:block; overflow:visible; }
+  .ans{ position:absolute; right:4mm; bottom:2mm; color:#0a7; display:none; }
+  .ans.show{ display:block; }
+</style>
+</head>
+<body>
+  <div id="controls">
+    <label>角度の刻み：<select id="step"><option value="free">フリー（1°）</option><option value="5">5°ずつ</option></select></label>
+    <button id="make">作成</button>
+    <button id="toggleAns" class="secondary">答え</button>
+    <button id="print">印刷</button>
+  </div>
+
+  <div class="sheet">
+    <div class="head">なまえ：<span class="line"></span></div>
+    <div class="grid">
+      <div class="cell"><div class="title">①</div><div class="blank">（　　　　　）</div><div class="ans"></div></div>
+      <div class="cell"><div class="title">②</div><div class="blank">（　　　　　）</div><div class="ans"></div></div>
+      <div class="cell"><div class="title">③</div><div class="blank">（　　　　　）</div><div class="ans"></div></div>
+      <div class="cell"><div class="title">④</div><div class="blank">（　　　　　）</div><div class="ans"></div></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const cells=[...document.querySelectorAll('.cell')];
+  const stepSel=document.getElementById('step');
+  const makeBtn=document.getElementById('make');
+  const toggleAnsBtn=document.getElementById('toggleAns');
+  const printBtn=document.getElementById('print');
+  let ansShown=false;
+
+  function randInt(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+  function snap(v,s){return s?Math.round(v/s)*s:v;}
+
+  function draw(){
+    const step=stepSel.value==='5'?5:1;
+    cells.forEach((cell,i)=>{
+      cell.innerHTML=`<div class='title'>${i+1}）</div><div class='blank'>（　　　　　）</div><div class='ans'></div>`;
+      const ans=cell.querySelector('.ans');
+      const w=cell.clientWidth, h=cell.clientHeight, svgNS='http://www.w3.org/2000/svg';
+      const svg=document.createElementNS(svgNS,'svg');
+      const baseLen=w*0.3; // 横線をさらに短く
+      const y=h*0.75;
+      const startRight=Math.random()<0.5;
+      let theta=snap(randInt(15,165),step);
+
+      let vx,baseStartX,baseEndX,baseAngleDeg;
+      if(startRight){vx=w*0.15;baseStartX=vx;baseEndX=vx+baseLen;baseAngleDeg=0;}
+      else{vx=w*0.85;baseStartX=vx-baseLen;baseEndX=vx;baseAngleDeg=180;}
+      const vy=y;
+
+      // 斜線を画面上端まで延ばす（常に上方向）
+      const dirDeg=startRight?(360-theta):(180+theta);
+      const dirRad=dirDeg*Math.PI/180;
+      const x2=vx+Math.cos(dirRad)*w*2;
+      const y2=vy+Math.sin(dirRad)*h*2;
+
+      const g=document.createElementNS(svgNS,'g');
+      const base=line(baseStartX,y,baseEndX,y);
+      const diag=line(vx,vy,x2,y2);
+      const arcR=Math.min(34,Math.max(20,w*0.05));
+      const arc=document.createElementNS(svgNS,'path');
+      arc.setAttribute('d',angleArcPath(vx,vy,baseAngleDeg,(startRight?-theta:theta),arcR));
+      arc.setAttribute('fill','none');arc.setAttribute('stroke','#000');arc.setAttribute('stroke-width','1.2');
+
+      g.appendChild(base);g.appendChild(diag);g.appendChild(arc);svg.appendChild(g);cell.appendChild(svg);
+      ans.textContent=`${theta}°`;
+    });
+  }
+
+  function line(x1,y1,x2,y2){const el=document.createElementNS('http://www.w3.org/2000/svg','line');el.setAttribute('x1',x1);el.setAttribute('y1',y1);el.setAttribute('x2',x2);el.setAttribute('y2',y2);el.setAttribute('stroke','#000');return el;}
+  function angleArcPath(cx,cy,base,rel,r){const s=degToXY(cx,cy,base,r),e=degToXY(cx,cy,base+rel,r);const sweep=rel>=0?1:0;return`M${s.x} ${s.y}A${r} ${r} 0 0 ${sweep} ${e.x} ${e.y}`;}
+  function degToXY(cx,cy,deg,r){const rad=deg*Math.PI/180;return{x:cx+Math.cos(rad)*r,y:cy+Math.sin(rad)*r};}
+
+  makeBtn.onclick=draw;
+  toggleAnsBtn.onclick=()=>{ansShown=!ansShown;document.querySelectorAll('.ans').forEach(a=>a.classList.toggle('show',ansShown));};
+  printBtn.onclick=()=>window.print();
+  window.onload=()=>draw();
+})();
+</script>
+</body>
+</html>
