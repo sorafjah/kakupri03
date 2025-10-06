@@ -243,12 +243,29 @@
         }
 
         function showAnswers() {
-            correctAnswers.forEach((answer, index) => {
-                const answerSpan = document.getElementById(`answer-${index}`);
-                if (answerSpan) {
-                    answerSpan.innerHTML = `${answer}°`;
-                }
-            });
+            const firstAnswerSpan = document.getElementById('answer-0');
+            // 問題が生成されていない場合は何もしない
+            if (!firstAnswerSpan) return;
+
+            const answersAreShown = firstAnswerSpan.textContent.includes('°');
+
+            if (answersAreShown) {
+                // 答えが既に表示されている場合は、隠す
+                correctAnswers.forEach((_, index) => {
+                    const answerSpan = document.getElementById(`answer-${index}`);
+                    if (answerSpan) {
+                        answerSpan.innerHTML = '&nbsp;'.repeat(10);
+                    }
+                });
+            } else {
+                // 答えが表示されていない場合は、表示する
+                correctAnswers.forEach((answer, index) => {
+                    const answerSpan = document.getElementById(`answer-${index}`);
+                    if (answerSpan) {
+                        answerSpan.innerHTML = `${answer}°`;
+                    }
+                });
+            }
         }
         
         function printWorksheet() {
@@ -287,6 +304,7 @@
     </script>
 </body>
 </html>
+
 
 
 
